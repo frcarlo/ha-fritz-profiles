@@ -6,7 +6,7 @@ CURRENT=$(grep '"version"' custom_components/fritz_profiles/manifest.json | grep
 echo "Aktuelle Version: $CURRENT"
 
 # Ask for new version
-read -rp "Neue Version (Enter = kein neuer Tag): " NEW_VERSION
+read -rp "Neue Version (Enter = nur pushen ohne neuen Release): " NEW_VERSION
 
 if [[ -n "$NEW_VERSION" ]]; then
     sed -i "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW_VERSION\"/" custom_components/fritz_profiles/manifest.json
@@ -20,4 +20,13 @@ if [[ -n "$NEW_VERSION" ]]; then
 fi
 
 git push origin main --tags
+
+# Create GitHub Release (HACS requires releases, not just tags)
+if [[ -n "$NEW_VERSION" ]]; then
+    gh release create "v$NEW_VERSION" \
+        --title "v$NEW_VERSION" \
+        --generate-notes
+    echo "GitHub Release v$NEW_VERSION erstellt"
+fi
+
 echo "Done!"
