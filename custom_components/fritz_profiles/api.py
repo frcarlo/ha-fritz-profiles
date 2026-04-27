@@ -160,10 +160,16 @@ class FritzProfilesApi:
                 data=payload,
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
+                body = await resp.text()
+                _LOGGER.warning(
+                    "set_profile POST status=%s payload=%s response=%s",
+                    resp.status,
+                    payload,
+                    body[:500],
+                )
                 resp.raise_for_status()
         except aiohttp.ClientError as err:
             raise CannotConnectError(str(err)) from err
-        _LOGGER.debug("Set profile %s for device %s", profile_id, device_uid)
 
     # ------------------------------------------------------------------
     # HTML parsers
