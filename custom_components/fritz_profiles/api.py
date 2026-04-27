@@ -101,30 +101,48 @@ class FritzProfilesApi:
     # ------------------------------------------------------------------
 
     async def async_get_profiles(self) -> dict[str, Any]:
-        """Return all profiles and device profile assignments.
+        """Return all profiles, device assignments, and ticket codes.
 
         Returns:
             {
               "profiles": {profile_id: profile_name, ...},
-              "devices": [{"uid": str, "name": str, "current_profile": profile_id}, ...]
+              "devices": [{"uid": str, "name": str, "current_profile": profile_id}, ...],
+              "tickets": [{"code": str, "used": bool}, ...]
             }
         """
         await self._ensure_logged_in()
 
-        # Profiles come from kidPro page (HTML table with edit buttons)
+        # Profiles and tickets come from kidPro page
         pro_resp = await self._fetch_page("kidPro")
         profiles = self._parse_profiles(pro_resp)
+        tickets = self._parse_tickets(pro_resp)
 
         # Device→profile assignments come from kidLis page
         lis_resp = await self._fetch_page("kidLis")
         devices = self._parse_devices(lis_resp)
 
         _LOGGER.debug(
-            "Loaded %d profiles and %d devices from FritzBox",
+            "Loaded %d profiles, %d devices, %d tickets from FritzBox",
             len(profiles),
             len(devices),
+            len(tickets),
         )
-        return {"profiles": profiles, "devices": devices}
+        return {"profiles": profiles, "devices": devices, "tickets": tickets}
+
+    async def async_reset_tickets(self) -> None:
+        """Generate a new set of ticket codes (invalidates all existing ones)."""
+        await self._ensure_logged_in()
+        assert self._sid
+        try:
+            async with self._session.post(
+                f"{self._base_url}/internet/kids_profilelist.lua",
+                data={"sid": self._sid, "refresh": ""},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                resp.raise_for_status()
+        except aiohttp.ClientError as err:
+            raise CannotConnectError(str(err)) from err
+        _LOGGER.debug("Ticket list reset")
 
     async def async_set_profile(self, device_uid: str, profile_id: str) -> None:
         """Assign a profile to a device via the kidLis form."""
@@ -166,6 +184,20 @@ class FritzProfilesApi:
         for name, pid in rows:
             profiles[pid] = name
         return profiles
+
+    @staticmethod
+    def _parse_tickets(html: str) -> list[dict]:
+        """Extract ticket codes from kidPro HTML.
+
+        Ticket objects are embedded as JSON: {"id":"912692","assigned":"0","_node":"ticketN"}
+        """
+        return [
+            {"code": m.group(1), "used": m.group(2) == "1"}
+            for m in re.finditer(
+                r'\{"id":"(\d{6})","assigned":"([01])","_node":"ticket\d+"',
+                html,
+            )
+        ]
 
     @staticmethod
     def _parse_devices(html: str) -> list[dict[str, str]]:

@@ -12,7 +12,7 @@ CONF_SCAN_INTERVAL: Final = "scan_interval"
 DEFAULT_HOST: Final = "fritz.box"
 DEFAULT_SCAN_INTERVAL: Final = 30
 
-PLATFORMS: Final = [Platform.SELECT, Platform.SWITCH]
+PLATFORMS: Final = [Platform.SELECT, Platform.SWITCH, Platform.SENSOR, Platform.BUTTON]
 
 DATA_API: Final = "api"
 DATA_COORDINATOR: Final = "coordinator"

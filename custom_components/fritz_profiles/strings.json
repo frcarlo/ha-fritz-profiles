@@ -40,6 +40,16 @@
       "internet_access": {
         "name": "Internet"
       }
+    },
+    "sensor": {
+      "tickets": {
+        "name": "Verfügbare Tickets"
+      }
+    },
+    "button": {
+      "reset_tickets": {
+        "name": "Tickets zurücksetzen"
+      }
     }
   }
 }
