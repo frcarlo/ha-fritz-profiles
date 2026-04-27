@@ -44,12 +44,13 @@ class FritzProfilesCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             data = await self.api.async_get_profiles()
             _LOGGER.warning(
-                "Coordinator update: %d profiles, %d devices, %d tickets",
+                "Coordinator update: %d profiles, %d devices, %d tickets | profiles=%s | devices=%s",
                 len(data.get("profiles", {})),
                 len(data.get("devices", [])),
                 len(data.get("tickets", [])),
+                data.get("profiles"),
+                [(d["name"], d["current_profile"]) for d in data.get("devices", [])],
             )
-            _LOGGER.warning("Profiles: %s", data.get("profiles"))
             return data
         except AuthenticationError as err:
             raise UpdateFailed(f"Authentication error: {err}") from err

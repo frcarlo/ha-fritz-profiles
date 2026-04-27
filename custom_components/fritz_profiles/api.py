@@ -188,16 +188,25 @@ class FritzProfilesApi:
 
     @staticmethod
     def _parse_profiles_from_options(html: str) -> dict[str, str]:
-        """Extract assignable {profile_id: profile_name} from the first device dropdown in kidLis.
+        """Extract assignable {profile_id: profile_name} from any device dropdown in kidLis.
 
         Only profiles that appear as <option> elements are actually assignable to devices.
+        Scans all device <select> elements and merges the results so that a device in a
+        non-standard profile (which may appear in a different table section) still
+        contributes its profile options.
         """
         profiles: dict[str, str] = {}
-        # Find the first <select> with filtprof options
-        m = re.search(r'<select[^>]*name="profile:landevice[^"]*"[^>]*>(.*?)</select>', html, re.DOTALL)
-        if m:
-            for opt in re.finditer(r'<option[^>]*value="(filtprof\d+)"[^>]*>([^<]+)</option>', m.group(1)):
-                profiles[opt.group(1)] = opt.group(2).strip()
+        for select in re.finditer(
+            r'<select[^>]*name="profile:landevice[^"]*"[^>]*>(.*?)</select>',
+            html,
+            re.DOTALL,
+        ):
+            for opt in re.finditer(
+                r'<option([^>]*)>([^<]+)</option>', select.group(1)
+            ):
+                val_m = re.search(r'value="(filtprof\d+)"', opt.group(1))
+                if val_m:
+                    profiles[val_m.group(1)] = opt.group(2).strip()
         return profiles
 
     @staticmethod
@@ -218,22 +227,33 @@ class FritzProfilesApi:
     def _parse_devices(html: str) -> list[dict[str, str]]:
         """Extract device list with current profile from kidLis HTML.
 
-        Each <tr> contains data-uid="landeviceXXX", a name title, and a <select>
-        with <option value="filtprofN" selected>.
+        Each <tr> contains a <select name="profile:landeviceXXX"> with one
+        <option selected> indicating the current profile.  We handle both
+        attribute orderings: <option value="filtprofN" selected> AND
+        <option selected value="filtprofN"> to avoid missing blocked devices.
         """
         devices: list[dict[str, str]] = []
         for row in html.split("<tr"):
             if "filtprof" not in row:
                 continue
-            # UID from select name: name="profile:landeviceXXX"
             uid_m = re.search(r'name="profile:(landevice\d+)"', row)
             name_m = re.search(r'class="name"[^>]*title="([^"]+)"', row)
-            profile_m = re.search(r'value="(filtprof\d+)"[^>]*selected', row)
-            if uid_m and name_m and profile_m:
+            if not uid_m or not name_m:
+                continue
+            # Find the <option> tag that carries "selected" in any position
+            selected_profile: str | None = None
+            for opt in re.finditer(r'<option([^>]+)>', row):
+                attrs = opt.group(1)
+                if re.search(r'\bselected\b', attrs):
+                    val_m = re.search(r'value="(filtprof\d+)"', attrs)
+                    if val_m:
+                        selected_profile = val_m.group(1)
+                        break
+            if selected_profile:
                 devices.append({
                     "uid": uid_m.group(1),
                     "name": name_m.group(1),
-                    "current_profile": profile_m.group(1),
+                    "current_profile": selected_profile,
                 })
         return devices
 
