@@ -21,7 +21,6 @@ class FritzProfilesCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator that polls the FritzBox for profile data."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        self.config_entry = entry
         self.api = FritzProfilesApi(
             host=entry.data[CONF_HOST],
             username=entry.data[CONF_USERNAME],
@@ -38,6 +37,8 @@ class FritzProfilesCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             name=DOMAIN,
             update_interval=timedelta(seconds=scan_interval),
         )
+        # Set after super().__init__() to avoid being overridden by base class
+        self.config_entry = entry
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
