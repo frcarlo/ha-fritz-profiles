@@ -151,7 +151,7 @@ class FritzProfilesApi:
         payload = {
             "sid": self._sid,
             "apply": "",
-            f"kisi[{device_uid}]": profile_id,
+            f"profile:{device_uid}": profile_id,
         }
         try:
             async with self._session.post(
@@ -208,9 +208,10 @@ class FritzProfilesApi:
         """
         devices: list[dict[str, str]] = []
         for row in html.split("<tr"):
-            if "data-uid=" not in row or "filtprof" not in row:
+            if "filtprof" not in row:
                 continue
-            uid_m = re.search(r'data-uid="(landevice\d+)"', row)
+            # UID from select name: name="profile:landeviceXXX"
+            uid_m = re.search(r'name="profile:(landevice\d+)"', row)
             name_m = re.search(r'class="name"[^>]*title="([^"]+)"', row)
             profile_m = re.search(r'value="(filtprof\d+)"[^>]*selected', row)
             if uid_m and name_m and profile_m:
