@@ -112,13 +112,14 @@ class FritzProfilesApi:
         """
         await self._ensure_logged_in()
 
-        # Profiles and tickets come from kidPro page
+        # Tickets come from kidPro page
         pro_resp = await self._fetch_page("kidPro")
-        profiles = self._parse_profiles(pro_resp)
         tickets = self._parse_tickets(pro_resp)
 
-        # Device→profile assignments come from kidLis page
+        # Profiles and device assignments come from kidLis page
+        # (only profiles assignable to devices appear in the dropdowns)
         lis_resp = await self._fetch_page("kidLis")
+        profiles = self._parse_profiles_from_options(lis_resp)
         devices = self._parse_devices(lis_resp)
 
         _LOGGER.debug(
@@ -176,20 +177,17 @@ class FritzProfilesApi:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_profiles(html: str) -> dict[str, str]:
-        """Extract {profile_id: profile_name} from kidPro HTML.
+    def _parse_profiles_from_options(html: str) -> dict[str, str]:
+        """Extract assignable {profile_id: profile_name} from the first device dropdown in kidLis.
 
-        Each profile row has a name <td title="..."> and an edit <button value="filtprofN">.
+        Only profiles that appear as <option> elements are actually assignable to devices.
         """
         profiles: dict[str, str] = {}
-        rows = re.findall(
-            r'<td[^>]*class="name"[^>]*title="([^"]+)"[^>]*>.*?'
-            r'<button[^>]*name="edit"[^>]*value="(filtprof\d+)"',
-            html,
-            re.DOTALL,
-        )
-        for name, pid in rows:
-            profiles[pid] = name
+        # Find the first <select> with filtprof options
+        m = re.search(r'<select[^>]*name="profile:landevice[^"]*"[^>]*>(.*?)</select>', html, re.DOTALL)
+        if m:
+            for opt in re.finditer(r'<option[^>]*value="(filtprof\d+)"[^>]*>([^<]+)</option>', m.group(1)):
+                profiles[opt.group(1)] = opt.group(2).strip()
         return profiles
 
     @staticmethod
