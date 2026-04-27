@@ -112,15 +112,32 @@ class FritzProfilesApi:
         """
         await self._ensure_logged_in()
 
-        # Tickets come from kidPro page
-        pro_resp = await self._fetch_page("kidPro")
-        tickets = self._parse_tickets(pro_resp)
+        profiles: dict[str, str] = {}
+        devices: list[dict[str, str]] = []
+        tickets: list[dict] = []
 
-        # Profiles and device assignments come from kidLis page
-        # (only profiles assignable to devices appear in the dropdowns)
-        lis_resp = await self._fetch_page("kidLis")
-        profiles = self._parse_profiles_from_options(lis_resp)
-        devices = self._parse_devices(lis_resp)
+        for attempt in range(2):
+            # Tickets come from kidPro page
+            pro_resp = await self._fetch_page("kidPro")
+            tickets = self._parse_tickets(pro_resp)
+
+            # Profiles and device assignments come from kidLis page
+            # (only profiles assignable to devices appear in the dropdowns)
+            lis_resp = await self._fetch_page("kidLis")
+            profiles = self._parse_profiles_from_options(lis_resp)
+            devices = self._parse_devices(lis_resp)
+
+            if profiles:
+                break
+
+            if attempt == 0:
+                # Empty profiles usually means the FritzBox returned a login page
+                # with a stale SID (200 OK instead of 403). Force re-login and retry.
+                _LOGGER.warning(
+                    "Got empty profiles on first attempt — forcing re-login (stale SID?)"
+                )
+                self._sid = None
+                await self.async_login()
 
         _LOGGER.debug(
             "Loaded %d profiles, %d devices, %d tickets from FritzBox",
@@ -231,20 +248,19 @@ class FritzProfilesApi:
     async def _fetch_page(self, page: str) -> str:
         """Fetch a data.lua page and return raw HTML."""
         assert self._sid
-        payload = {"sid": self._sid, "page": page}
         try:
             async with self._session.post(
                 f"{self._base_url}/data.lua",
-                data=payload,
+                data={"sid": self._sid, "page": page},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 if resp.status == 403:
+                    _LOGGER.debug("Got 403 on page %s, re-logging in", page)
                     self._sid = None
                     await self.async_login()
-                    payload["sid"] = self._sid
                     async with self._session.post(
                         f"{self._base_url}/data.lua",
-                        data=payload,
+                        data={"sid": self._sid, "page": page},
                         timeout=aiohttp.ClientTimeout(total=15),
                     ) as retry:
                         retry.raise_for_status()
