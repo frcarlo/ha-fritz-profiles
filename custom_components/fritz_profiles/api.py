@@ -151,6 +151,7 @@ class FritzProfilesApi:
         payload = {
             "sid": self._sid,
             "apply": "",
+            "editProfiles": "true",
             f"profile:{device_uid}": profile_id,
         }
         try:

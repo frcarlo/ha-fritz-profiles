@@ -21,6 +21,7 @@ class FritzProfilesCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Coordinator that polls the FritzBox for profile data."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self.config_entry = entry
         self.api = FritzProfilesApi(
             host=entry.data[CONF_HOST],
             username=entry.data[CONF_USERNAME],
