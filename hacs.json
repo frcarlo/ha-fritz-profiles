@@ -1,4 +1,5 @@
 {
   "name": "FritzBox Profile Manager",
-  "render_readme": true
+  "render_readme": true,
+  "icon": "https://raw.githubusercontent.com/frcarlo/ha-fritz-profiles/main/fritzBoxProfileManager.png"
 }
