@@ -127,6 +127,16 @@ class FritzProfilesApi:
             profiles = self._parse_profiles_from_options(lis_resp)
             devices = self._parse_devices(lis_resp)
 
+            # Temporary: dump raw HTML so we can see how profile assignment is stored
+            _LOGGER.warning(
+                "kidLis HTML [0:3000]: %s",
+                lis_resp[:3000].replace("\n", " ").replace("\r", ""),
+            )
+            _LOGGER.warning(
+                "kidLis HTML [3000:6000]: %s",
+                lis_resp[3000:6000].replace("\n", " ").replace("\r", ""),
+            )
+
             if profiles:
                 break
 
