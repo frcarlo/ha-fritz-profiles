@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect FritzBox",
+        "description": "Enter credentials for your FritzBox",
+        "data": {
+          "host": "Hostname / IP address",
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to FritzBox. Check the hostname.",
+      "invalid_auth": "Invalid credentials. Check username and password.",
+      "unknown": "Unknown error. Check the logs."
+    },
+    "abort": {
+      "already_configured": "This FritzBox is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "profile": {
+        "name": "Profile"
+      }
+    },
+    "switch": {
+      "internet_access": {
+        "name": "Internet"
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "FritzBox verbinden",
+        "description": "Zugangsdaten für deine FritzBox eingeben",
+        "data": {
+          "host": "Hostname / IP-Adresse",
+          "username": "Benutzername",
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zur FritzBox fehlgeschlagen. Hostname prüfen.",
+      "invalid_auth": "Ungültige Zugangsdaten. Benutzername und Passwort prüfen.",
+      "unknown": "Unbekannter Fehler. Logs prüfen."
+    },
+    "abort": {
+      "already_configured": "Diese FritzBox ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Optionen",
+        "data": {
+          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "profile": {
+        "name": "Profil"
+      }
+    },
+    "switch": {
+      "internet_access": {
+        "name": "Internet"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "domain": "fritz_profiles",
+  "name": "FritzBox Profile Manager",
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "version": "1.0.0",
+  "requirements": [],
+  "codeowners": [],
+  "documentation": "https://github.com/carlo/fritz_profiles",
+  "issue_tracker": "https://github.com/carlo/fritz_profiles/issues"
+}

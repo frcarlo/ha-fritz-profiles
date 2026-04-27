@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//data/**)",
+      "Read(//data/docker-configs/**)",
+      "Read(//opt/**)",
+      "Bash(xargs ls *)",
+      "Bash(python3 -c \"import aiohttp; print\\('aiohttp ok'\\)\")",
+      "Bash(FRITZ_HOST=192.168.178.1 FRITZ_USER=frcarlo FRITZ_PASS='Sep268!=' uv run --with aiohttp test_api.py)"
+    ]
+  }
+}
