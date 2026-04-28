@@ -116,10 +116,13 @@ class FritzProfilesApi:
         devices: list[dict[str, str]] = []
         tickets: list[dict] = []
 
+        shared_budgets: dict[str, bool] = {}
+
         for attempt in range(2):
-            # Tickets come from kidPro page
+            # Tickets and shared-budget flags come from kidPro page
             pro_resp = await self._fetch_page("kidPro")
             tickets = self._parse_tickets(pro_resp)
+            shared_budgets = self._parse_profile_shared_budgets(pro_resp)
 
             # Profiles and device assignments come from kidLis page
             # (only profiles assignable to devices appear in the dropdowns)
@@ -145,7 +148,12 @@ class FritzProfilesApi:
             len(devices),
             len(tickets),
         )
-        return {"profiles": profiles, "devices": devices, "tickets": tickets}
+        return {
+            "profiles": profiles,
+            "devices": devices,
+            "tickets": tickets,
+            "profile_shared_budgets": shared_budgets,
+        }
 
     async def async_reset_tickets(self) -> None:
         """Generate a new set of ticket codes (invalidates all existing ones)."""
@@ -215,6 +223,29 @@ class FritzProfilesApi:
         if m:
             return max(0, int(m.group(1)))
         return None
+
+    @staticmethod
+    def _parse_profile_shared_budgets(html: str) -> dict[str, bool]:
+        """Parse which profiles use a shared (pooled) time budget from kidPro.
+
+        Returns {profile_id: True} for shared-budget profiles (Geteiltes Budget: ja),
+        {profile_id: False} for individual-budget profiles (nein).
+        Profiles with no budget (—) are omitted.
+        """
+        budgets: dict[str, bool] = {}
+        for row in html.split("<tr"):
+            pid_m = re.search(r'name="edit"\s+value="(filtprof\d+)"', row)
+            if not pid_m:
+                continue
+            budget_m = re.search(r'datalabel="Geteiltes Budget">([^<]+)<', row)
+            if not budget_m:
+                continue
+            value = budget_m.group(1).strip()
+            if value == "ja":
+                budgets[pid_m.group(1)] = True
+            elif value == "nein":
+                budgets[pid_m.group(1)] = False
+        return budgets
 
     @staticmethod
     def _parse_profiles_from_options(html: str) -> dict[str, str]:

@@ -70,7 +70,12 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
         device = self._get_device_data()
         if device is None:
             return {}
+        attrs: dict[str, Any] = {}
         remaining = device.get("time_remaining")
-        if remaining is None:
-            return {}
-        return {"time_remaining_minutes": remaining}
+        if remaining is not None:
+            attrs["time_remaining_minutes"] = remaining
+        shared_budgets = self.coordinator.data.get("profile_shared_budgets", {})
+        current_profile = device.get("current_profile", "")
+        if current_profile in shared_budgets:
+            attrs["shared_budget"] = shared_budgets[current_profile]
+        return attrs
