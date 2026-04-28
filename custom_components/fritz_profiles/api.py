@@ -125,17 +125,7 @@ class FritzProfilesApi:
             # (only profiles assignable to devices appear in the dropdowns)
             lis_resp = await self._fetch_page("kidLis")
             profiles = self._parse_profiles_from_options(lis_resp)
-            devices = self._parse_devices(lis_resp)
-
-            # Temporary: dump raw HTML so we can see how profile assignment is stored
-            _LOGGER.warning(
-                "kidLis HTML [0:3000]: %s",
-                lis_resp[:3000].replace("\n", " ").replace("\r", ""),
-            )
-            _LOGGER.warning(
-                "kidLis HTML [3000:6000]: %s",
-                lis_resp[3000:6000].replace("\n", " ").replace("\r", ""),
-            )
+            devices = self._parse_devices(lis_resp, profiles)
 
             if profiles:
                 break
@@ -234,37 +224,39 @@ class FritzProfilesApi:
         ]
 
     @staticmethod
-    def _parse_devices(html: str) -> list[dict[str, str]]:
+    def _parse_devices(html: str, profiles: dict[str, str]) -> list[dict[str, str]]:
         """Extract device list with current profile from kidLis HTML.
 
-        Each <tr> contains a <select name="profile:landeviceXXX"> with one
-        <option selected> indicating the current profile.  We handle both
-        attribute orderings: <option value="filtprofN" selected> AND
-        <option selected value="filtprofN"> to avoid missing blocked devices.
+        The FritzBox groups devices under <tr class="separator"> rows whose
+        <td class="separator__headline"><p> contains the profile name.  The
+        <select> dropdowns always default to filtprof1 regardless of actual
+        assignment, so we track the active separator instead of using
+        the `selected` attribute.
         """
+        name_to_id = {name.lower(): pid for pid, name in profiles.items()}
         devices: list[dict[str, str]] = []
+        current_profile_id: str | None = None
+
         for row in html.split("<tr"):
-            if "filtprof" not in row:
+            # Separator row — announces profile for the rows that follow
+            if "separator__headline" in row:
+                name_m = re.search(r'<p[^>]*>\s*([^<]+?)\s*</p>', row)
+                if name_m:
+                    current_profile_id = name_to_id.get(name_m.group(1).strip().lower())
                 continue
+
+            if current_profile_id is None:
+                continue
+
             uid_m = re.search(r'name="profile:(landevice\d+)"', row)
             name_m = re.search(r'class="name"[^>]*title="([^"]+)"', row)
-            if not uid_m or not name_m:
-                continue
-            # Find the <option> tag that carries "selected" in any position
-            selected_profile: str | None = None
-            for opt in re.finditer(r'<option([^>]+)>', row):
-                attrs = opt.group(1)
-                if re.search(r'\bselected\b', attrs):
-                    val_m = re.search(r'value="(filtprof\d+)"', attrs)
-                    if val_m:
-                        selected_profile = val_m.group(1)
-                        break
-            if selected_profile:
+            if uid_m and name_m:
                 devices.append({
                     "uid": uid_m.group(1),
                     "name": name_m.group(1),
-                    "current_profile": selected_profile,
+                    "current_profile": current_profile_id,
                 })
+
         return devices
 
     # ------------------------------------------------------------------
