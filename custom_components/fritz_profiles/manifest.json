@@ -3,7 +3,7 @@
   "name": "FritzBox Profile Manager",
   "config_flow": true,
   "iot_class": "local_polling",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "requirements": [],
   "codeowners": [],
   "documentation": "https://github.com/carlo/fritz_profiles",
