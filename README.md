@@ -7,64 +7,64 @@
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz)
 [![Version](https://img.shields.io/github/v/release/frcarlo/ha-fritz-profiles)](https://github.com/frcarlo/ha-fritz-profiles/releases)
 
-Home Assistant Custom Integration zur Verwaltung von FritzBox Kindersicherungs-Profilen direkt aus HA heraus — ohne sich in die FritzBox-Oberfläche einzuloggen.
+Home Assistant custom integration for managing FritzBox parental control profiles — without logging into the FritzBox interface.
 
 ## Features
 
-- **Profil wechseln** — Select-Entity pro Gerät: beliebiges Zugangsprofil zuweisen (Standard, Kids, Gesperrt, …)
-- **Internet sperren/freigeben** — Switch-Entity pro Gerät: schneller Toggle
-- **Verbleibende Zeit** — Attribut `time_remaining_minutes` zeigt das restliche Zeitbudget pro Gerät
-- **Tickets anzeigen** — Sensor mit verfügbaren 45-Minuten-Ticket-Codes als Attribut
-- **Tickets zurücksetzen** — Button zum Generieren neuer Ticket-Codes
+- **Switch profiles** — Select entity per device: assign any access profile (Standard, Kids, Blocked, …)
+- **Block / unblock internet** — Switch entity per device: quick toggle
+- **Remaining time** — `time_remaining_minutes` attribute shows the remaining daily time budget per device
+- **Ticket codes** — Sensor with available 45-minute online-time ticket codes as attributes
+- **Reset tickets** — Button to generate a new set of ticket codes
 
-## Voraussetzungen
+## Requirements
 
-- FRITZ!Box mit FritzOS ≥ 7.24
-- FritzBox-Benutzer mit Berechtigung für Kindersicherung
-- [HACS](https://hacs.xyz) installiert
+- FRITZ!Box with FritzOS ≥ 7.24
+- FritzBox user account with parental control permission
+- [HACS](https://hacs.xyz) installed
 
 ## Installation via HACS
 
 1. HACS → **⋮ → Custom repositories**
 2. URL: `https://github.com/frcarlo/ha-fritz-profiles`
-3. Kategorie: **Integration** → Hinzufügen
-4. Integration suchen und installieren
-5. Home Assistant neu starten
+3. Category: **Integration** → Add
+4. Search for the integration and install it
+5. Restart Home Assistant
 
-## Einrichtung
+## Setup
 
-**Einstellungen → Integrationen → + Hinzufügen → "FritzBox Profile Manager"**
+**Settings → Integrations → + Add Integration → "FritzBox Profile Manager"**
 
-| Feld | Beispiel |
-|------|---------|
-| Host | `fritz.box` oder `192.168.178.1` |
-| Benutzername | FritzBox-Benutzername |
-| Passwort | FritzBox-Passwort |
+| Field | Example |
+|-------|---------|
+| Host | `fritz.box` or `192.168.178.1` |
+| Username | FritzBox username |
+| Password | FritzBox password |
 
 ## Entities
 
-### Pro Netzwerkgerät
-| Entity | Typ | Beschreibung |
-|--------|-----|-------------|
-| `select.GERÄT_profil` | Select | Zugangsprofil auswählen |
-| `switch.GERÄT_internet` | Switch | Internet sperren / freigeben |
+### Per network device
+| Entity | Type | Description |
+|--------|------|-------------|
+| `select.DEVICE_profil` | Select | Choose access profile |
+| `switch.DEVICE_internet` | Switch | Block / unblock internet |
 
-Beide Entities haben das Attribut `time_remaining_minutes` (Minuten verbleibend) — nur gesetzt wenn das Gerät ein Zeitbudget hat.
+Both entities expose the attribute `time_remaining_minutes` (minutes left today) — only set when the device has a daily time budget.
 
-### Global (FritzBox Profile Manager Gerät)
-| Entity | Typ | Beschreibung |
-|--------|-----|-------------|
-| `sensor.fritzbox_profile_manager_verfugbare_tickets` | Sensor | Anzahl verfügbarer Tickets + Codes als Attribut |
-| `button.fritzbox_profile_manager_tickets_zurucksetzen` | Button | Neue Ticket-Codes generieren |
+### Global (FritzBox Profile Manager device)
+| Entity | Type | Description |
+|--------|------|-------------|
+| `sensor.fritzbox_profile_manager_verfugbare_tickets` | Sensor | Number of available tickets + codes as attribute |
+| `button.fritzbox_profile_manager_tickets_zurucksetzen` | Button | Generate new ticket codes |
 
-### Ticket-Codes auf dem Dashboard anzeigen
+### Show ticket codes on the dashboard
 
-Markdown-Karte:
+Markdown card:
 ```yaml
 type: markdown
 title: Ticket Codes
 content: >
-  **{{ state_attr('sensor.fritzbox_profile_manager_verfugbare_tickets', 'available_codes') | length }} von {{ state_attr('sensor.fritzbox_profile_manager_verfugbare_tickets', 'total') }} verfügbar**
+  **{{ state_attr('sensor.fritzbox_profile_manager_verfugbare_tickets', 'available_codes') | length }} of {{ state_attr('sensor.fritzbox_profile_manager_verfugbare_tickets', 'total') }} available**
 
   {% set codes = state_attr('sensor.fritzbox_profile_manager_verfugbare_tickets', 'available_codes') %}
   {% for code in codes %}
@@ -72,19 +72,19 @@ content: >
   {% endfor %}
 ```
 
-### Ticket einlösen (für Kinder)
+### Redeeming a ticket (for kids)
 
-Wenn das Zeitbudget aufgebraucht ist, einfach im Browser auf dem Gerät aufrufen:
+When the daily time budget runs out, open this URL in the browser on the device:
 ```
 http://fritz.box/internet/kids_ticket.lua
 ```
 
-## Beispiel-Automatisierungen
+## Example automations
 
 ```yaml
-# Abends Kinder-Internet sperren
+# Block kids' internet in the evening
 automation:
-  - alias: "Kinder-Internet abends sperren"
+  - alias: "Block kids internet at night"
     trigger:
       platform: time
       at: "21:00:00"
@@ -95,7 +95,7 @@ automation:
         data:
           option: "Kids"
 
-  - alias: "Kinder-Internet morgens freigeben"
+  - alias: "Unblock kids internet in the morning"
     trigger:
       platform: time
       at: "07:00:00"
@@ -106,7 +106,7 @@ automation:
         data:
           option: "Standard"
 
-  - alias: "Benachrichtigung wenn noch 10 Minuten übrig"
+  - alias: "Notify when 10 minutes of online time left"
     trigger:
       platform: numeric_state
       entity_id: select.redmi_pad_se_profil
@@ -115,18 +115,18 @@ automation:
     action:
       - service: notify.mobile_app
         data:
-          message: "Noch 10 Minuten Online-Zeit!"
+          message: "Only 10 minutes of online time left!"
 ```
 
-## Technische Details
+## Technical details
 
-Die Integration nutzt die interne FritzBox LUA API (`/data.lua`) mit PBKDF2-SHA256 Authentifizierung. Kein externes Python-Paket nötig — nur `aiohttp` (bereits in Home Assistant enthalten).
+The integration uses the internal FritzBox LUA API (`/data.lua`) with PBKDF2-SHA256 authentication. No external Python packages required — only `aiohttp` which is already bundled with Home Assistant.
 
-| Seite | Inhalt |
-|-------|--------|
-| `kidPro` | Ticket-Codes (HTML-Parsing) |
-| `kidLis` | Geräteliste mit Profilen und Zeitbudgets (HTML-Parsing) |
-| `/internet/kids_userlist.lua` | Profil setzen (POST) |
-| `/internet/kids_profilelist.lua` | Tickets zurücksetzen (POST) |
+| Page | Content |
+|------|---------|
+| `kidPro` | Ticket codes (HTML parsing) |
+| `kidLis` | Device list with profiles and time budgets (HTML parsing) |
+| `/internet/kids_userlist.lua` | Set profile (POST) |
+| `/internet/kids_profilelist.lua` | Reset tickets (POST) |
 
-**Hinweis:** Die FritzBox weist Geräten bei jedem Profilwechsel neue interne UIDs zu. Die Integration erkennt Geräte daher zusätzlich über den Gerätenamen als Fallback.
+**Note:** The FritzBox reassigns internal device UIDs on every profile change. The integration therefore identifies devices by name as a fallback to ensure entities remain stable across profile switches.
