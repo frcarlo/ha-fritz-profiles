@@ -70,7 +70,7 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
         device = self._get_device_data()
         if device is None:
             return {}
-        attrs: dict[str, Any] = {}
+        attrs: dict[str, Any] = {"device_name": self._device_name}
         remaining = device.get("time_remaining")
         if remaining is not None:
             attrs["time_remaining_minutes"] = remaining
