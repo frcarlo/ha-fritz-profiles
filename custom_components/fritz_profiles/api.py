@@ -223,39 +223,47 @@ class FritzProfilesApi:
             )
         ]
 
-    @staticmethod
-    def _parse_devices(html: str, profiles: dict[str, str]) -> list[dict[str, str]]:
+    @classmethod
+    def _parse_devices(cls, html: str, profiles: dict[str, str]) -> list[dict[str, str]]:
         """Extract device list with current profile from kidLis HTML.
 
-        The FritzBox groups devices under <tr class="separator"> rows whose
-        <td class="separator__headline"><p> contains the profile name.  The
-        <select> dropdowns always default to filtprof1 regardless of actual
-        assignment, so we track the active separator instead of using
-        the `selected` attribute.
+        Each device row has a <select name="profile:landeviceXXX" disabled>
+        where the <option selected> shows the current profile.  The UID can
+        also come from data-uid="landeviceXXX" on the block-toggle link.
         """
-        name_to_id = {name.lower(): pid for pid, name in profiles.items()}
         devices: list[dict[str, str]] = []
-        current_profile_id: str | None = None
-
         for row in html.split("<tr"):
-            # Separator row — announces profile for the rows that follow
-            if "separator__headline" in row:
-                name_m = re.search(r'<p[^>]*>\s*([^<]+?)\s*</p>', row)
-                if name_m:
-                    current_profile_id = name_to_id.get(name_m.group(1).strip().lower())
-                continue
-
-            if current_profile_id is None:
-                continue
-
-            uid_m = re.search(r'name="profile:(landevice\d+)"', row)
             name_m = re.search(r'class="name"[^>]*title="([^"]+)"', row)
-            if uid_m and name_m:
+            if not name_m:
+                continue
+
+            # UID: prefer select name, fall back to data-uid on the block link
+            uid_m = re.search(r'name="profile:(landevice\d+)"', row) or \
+                    re.search(r'data-uid="(landevice\d+)"', row)
+            if not uid_m:
+                continue
+
+            selected_profile: str | None = None
+            for opt in re.finditer(r'<option([^>]+)>', row):
+                attrs = opt.group(1)
+                if re.search(r'\bselected\b', attrs):
+                    val_m = re.search(r'value="(filtprof\d+)"', attrs)
+                    if val_m:
+                        selected_profile = val_m.group(1)
+                        break
+
+            if selected_profile:
                 devices.append({
                     "uid": uid_m.group(1),
                     "name": name_m.group(1),
-                    "current_profile": current_profile_id,
+                    "current_profile": selected_profile,
                 })
+            else:
+                _LOGGER.warning(
+                    "No selected profile found for device '%s' (%s) — skipping",
+                    name_m.group(1),
+                    uid_m.group(1),
+                )
 
         return devices
 
