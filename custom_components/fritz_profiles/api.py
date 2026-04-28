@@ -195,15 +195,26 @@ class FritzProfilesApi:
     def _parse_time_remaining(row: str) -> int | None:
         """Parse remaining online-time in minutes from a device row.
 
-        The time cell contains <span title="HH:MM von HH:MM Stunden">.
+        Two formats exist in the time cell:
+        1. Normal budget:  <span title="HH:MM von HH:MM Stunden"> (progress bar)
+        2. Ticket extension: plain text "verlängert, noch X Min" or "noch H:MM"
         Returns remaining minutes, or None if the device has unlimited time.
         """
+        # Format 1: progress bar span with used/total
         m = re.search(r'class="bar time"[^>]*>.*?<span title="(\d+):(\d+) von (\d+):(\d+)', row, re.DOTALL)
-        if not m:
-            return None
-        used_h, used_m, total_h, total_m = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
-        remaining = (total_h * 60 + total_m) - (used_h * 60 + used_m)
-        return max(0, remaining)
+        if m:
+            used_h, used_m, total_h, total_m = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+            remaining = (total_h * 60 + total_m) - (used_h * 60 + used_m)
+            return max(0, remaining)
+        # Format 2a: "noch H:MM" (hours:minutes)
+        m = re.search(r'class="bar time"[^>]*>.*?noch (\d+):(\d+)', row, re.DOTALL)
+        if m:
+            return max(0, int(m.group(1)) * 60 + int(m.group(2)))
+        # Format 2b: "noch X Min" (minutes only)
+        m = re.search(r'class="bar time"[^>]*>.*?noch (\d+) Min', row, re.DOTALL)
+        if m:
+            return max(0, int(m.group(1)))
+        return None
 
     @staticmethod
     def _parse_profiles_from_options(html: str) -> dict[str, str]:
