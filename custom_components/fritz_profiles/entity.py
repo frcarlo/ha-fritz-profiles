@@ -36,10 +36,20 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
         )
 
     def _get_device_data(self) -> dict[str, Any] | None:
-        """Return the coordinator data entry for this device."""
-        for device in self.coordinator.data.get("devices", []):
+        """Return the coordinator data entry for this device.
+
+        The FritzBox reassigns UIDs on every profile change (e.g. user3561 in
+        Kids becomes landevice671 in Standard, then user3563 back in Kids).
+        We therefore match by stored UID first, then fall back to device name.
+        """
+        devices = self.coordinator.data.get("devices", [])
+        for device in devices:
             if device["uid"] == self._device_uid:
                 return device
+        # UID changed — try name-based lookup (skip if name is ambiguous)
+        matches = [d for d in devices if d["name"] == self._device_name]
+        if len(matches) == 1:
+            return matches[0]
         return None
 
     def _get_profile_name(self, profile_id: str) -> str | None:

@@ -48,30 +48,34 @@ class FritzProfileSwitchEntity(FritzProfileBaseEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         """Set the standard/unrestricted profile."""
+        device = self._get_device_data()
+        if device is None:
+            return
         profile_id = self._find_profile_id(STANDARD_PROFILE_NAMES)
         if profile_id is None:
             _LOGGER.error(
-                "No standard profile found for device %s. "
-                "Available profiles: %s",
+                "No standard profile found for device %s. Available: %s",
                 self._device_name,
                 list(self.coordinator.data.get("profiles", {}).values()),
             )
             return
-        await self.coordinator.api.async_set_profile(self._device_uid, profile_id)
+        await self.coordinator.api.async_set_profile(device["uid"], profile_id)
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs) -> None:
         """Set the blocked profile."""
+        device = self._get_device_data()
+        if device is None:
+            return
         profile_id = self._find_profile_id(BLOCKED_PROFILE_NAMES)
         if profile_id is None:
             _LOGGER.error(
-                "No blocked profile found for device %s. "
-                "Available profiles: %s",
+                "No blocked profile found for device %s. Available: %s",
                 self._device_name,
                 list(self.coordinator.data.get("profiles", {}).values()),
             )
             return
-        await self.coordinator.api.async_set_profile(self._device_uid, profile_id)
+        await self.coordinator.api.async_set_profile(device["uid"], profile_id)
         await self.coordinator.async_request_refresh()
 
     def _find_profile_id(self, name_candidates: list[str]) -> str | None:

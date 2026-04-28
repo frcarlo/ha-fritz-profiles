@@ -50,9 +50,14 @@ class FritzProfileSelectEntity(FritzProfileBaseEntity, SelectEntity):
         return self._get_profile_name(device["current_profile"])
 
     async def async_select_option(self, option: str) -> None:
+        device = self._get_device_data()
+        if device is None:
+            _LOGGER.error("Device %s not found in coordinator data", self._device_name)
+            return
         profile_id = self._get_profile_id(option)
         if profile_id is None:
             _LOGGER.error("Profile '%s' not found for device %s", option, self._device_name)
             return
-        await self.coordinator.api.async_set_profile(self._device_uid, profile_id)
+        # Use device["uid"] — the current UID, which may differ from self._device_uid
+        await self.coordinator.api.async_set_profile(device["uid"], profile_id)
         await self.coordinator.async_request_refresh()
