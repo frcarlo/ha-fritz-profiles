@@ -9,6 +9,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN, NAME
 from .coordinator import FritzProfilesCoordinator
 
+_UNSET = object()
+
 
 class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
     """Base class for FritzBox profile entities."""
@@ -62,3 +64,13 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
             if pname == profile_name:
                 return pid
         return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        device = self._get_device_data()
+        if device is None:
+            return {}
+        remaining = device.get("time_remaining")
+        if remaining is None:
+            return {}
+        return {"time_remaining_minutes": remaining}

@@ -192,6 +192,20 @@ class FritzProfilesApi:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _parse_time_remaining(row: str) -> int | None:
+        """Parse remaining online-time in minutes from a device row.
+
+        The time cell contains <span title="HH:MM von HH:MM Stunden">.
+        Returns remaining minutes, or None if the device has unlimited time.
+        """
+        m = re.search(r'class="bar time"[^>]*>.*?<span title="(\d+):(\d+) von (\d+):(\d+)', row, re.DOTALL)
+        if not m:
+            return None
+        used_h, used_m, total_h, total_m = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
+        remaining = (total_h * 60 + total_m) - (used_h * 60 + used_m)
+        return max(0, remaining)
+
+    @staticmethod
     def _parse_profiles_from_options(html: str) -> dict[str, str]:
         """Extract assignable {profile_id: profile_name} from any device dropdown in kidLis.
 
@@ -259,11 +273,13 @@ class FritzProfilesApi:
                         break
 
             if selected_profile:
-                devices.append({
+                device: dict = {
                     "uid": uid_m.group(1),
                     "name": name_m.group(1),
                     "current_profile": selected_profile,
-                })
+                    "time_remaining": cls._parse_time_remaining(row),
+                }
+                devices.append(device)
             else:
                 _LOGGER.warning(
                     "No selected profile found for device '%s' (%s) — skipping",
