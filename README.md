@@ -74,10 +74,7 @@ content: >
 
 ### Redeeming a ticket (for kids)
 
-When the daily time budget runs out, open this URL in the browser on the device:
-```
-http://fritz.box/internet/kids_ticket.lua
-```
+When the daily time budget runs out, the child simply opens any website or navigates to `http://fritz.box` in the browser. The FritzBox automatically detects the device and shows a ticket code entry page — no login required.
 
 ## Example automations
 
