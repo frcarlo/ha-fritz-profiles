@@ -161,6 +161,7 @@ class FritzProfilesApi:
         except aiohttp.ClientError as err:
             raise CannotConnectError(str(err)) from err
         _LOGGER.debug("Ticket list reset")
+        self._sid = None
 
     async def async_set_profile(self, device_uid: str, profile_id: str) -> None:
         """Assign a profile to a device via the kidLis form."""
@@ -181,6 +182,10 @@ class FritzProfilesApi:
                 resp.raise_for_status()
         except aiohttp.ClientError as err:
             raise CannotConnectError(str(err)) from err
+        # The FritzBox silently invalidates the SID after processing a profile
+        # change. Force re-login on the next coordinator poll to avoid stale-SID
+        # failures (UpdateFailed / unavailable entities).
+        self._sid = None
 
     # ------------------------------------------------------------------
     # HTML parsers
