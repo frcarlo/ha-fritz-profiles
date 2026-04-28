@@ -197,7 +197,7 @@ class FritzProfilesApi:
         """
         profiles: dict[str, str] = {}
         for select in re.finditer(
-            r'<select[^>]*name="profile:landevice[^"]*"[^>]*>(.*?)</select>',
+            r'<select[^>]*name="profile:\w+"[^>]*>(.*?)</select>',
             html,
             re.DOTALL,
         ):
@@ -238,8 +238,9 @@ class FritzProfilesApi:
                 continue
 
             # UID: prefer select name, fall back to data-uid on the block link
-            uid_m = re.search(r'name="profile:(landevice\d+)"', row) or \
-                    re.search(r'data-uid="(landevice\d+)"', row)
+            # FritzBox uses both landeviceXXX and userXXX as device UIDs
+            uid_m = re.search(r'name="profile:(\w+)"', row) or \
+                    re.search(r'data-uid="(\w+)"', row)
             if not uid_m:
                 continue
 
