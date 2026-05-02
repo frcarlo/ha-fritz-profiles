@@ -320,6 +320,7 @@ class FritzProfilesApi:
                     "name": name_m.group(1),
                     "current_profile": selected_profile,
                     "time_remaining": cls._parse_time_remaining(row),
+                    "internet_blocked": bool(re.search(r'class="kisi_blocked"', row)),
                 }
                 devices.append(device)
             else:
