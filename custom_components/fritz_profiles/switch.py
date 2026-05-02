@@ -43,8 +43,6 @@ class FritzProfileSwitchEntity(FritzProfileBaseEntity, SwitchEntity):
         device = self._get_device_data()
         if device is None:
             return None
-        if device.get("internet_blocked"):
-            return False
         profile_name = self._get_profile_name(device["current_profile"]) or ""
         return profile_name.lower() not in BLOCKED_PROFILE_NAMES
 

@@ -12,13 +12,14 @@ CONF_SCAN_INTERVAL: Final = "scan_interval"
 DEFAULT_HOST: Final = "fritz.box"
 DEFAULT_SCAN_INTERVAL: Final = 30
 
-PLATFORMS: Final = [Platform.SELECT, Platform.SWITCH, Platform.SENSOR, Platform.BUTTON]
+PLATFORMS: Final = [Platform.SELECT, Platform.SWITCH, Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR]
 
 DATA_API: Final = "api"
 DATA_COORDINATOR: Final = "coordinator"
 
 # Profile names that count as "blocked" for the switch entity
 BLOCKED_PROFILE_NAMES: Final = [
+    "blockiert",
     "gesperrt",
     "blocked",
     "kein internet",
