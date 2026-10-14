@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 from typing import Any
@@ -11,6 +12,18 @@ import aiohttp
 _LOGGER = logging.getLogger(__name__)
 
 SID_INVALID = "0000000000000000"
+
+
+def normalize_mac(value: str | None) -> str | None:
+    """Normalize valid hardware addresses, excluding placeholder addresses."""
+    if not value:
+        return None
+    compact = re.sub(r"[:.\-]", "", value.strip()).lower()
+    if not re.fullmatch(r"[0-9a-f]{12}", compact):
+        return None
+    if compact in {"000000000000", "ffffffffffff"}:
+        return None
+    return ":".join(compact[index:index + 2] for index in range(0, 12, 2))
 
 
 class AuthenticationError(Exception):
@@ -106,14 +119,15 @@ class FritzProfilesApi:
         Returns:
             {
               "profiles": {profile_id: profile_name, ...},
-              "devices": [{"uid": str, "name": str, "current_profile": profile_id}, ...],
+              "devices": [{"uid": str, "name": str, "mac": str,
+                           "landevice_uid": str, "current_profile": profile_id}, ...],
               "tickets": [{"code": str, "used": bool}, ...]
             }
         """
         await self._ensure_logged_in()
 
         profiles: dict[str, str] = {}
-        devices: list[dict[str, str]] = []
+        devices: list[dict[str, Any]] = []
         tickets: list[dict] = []
 
         shared_budgets: dict[str, bool] = {}
@@ -141,6 +155,9 @@ class FritzProfilesApi:
                 )
                 self._sid = None
                 await self.async_login()
+
+        network_response = await self._fetch_page("netDev", {"xhr": "1", "xhrId": "all"})
+        self._add_network_identity(devices, network_response)
 
         _LOGGER.debug(
             "Loaded %d profiles, %d devices, %d tickets from FritzBox",
@@ -285,14 +302,14 @@ class FritzProfilesApi:
         ]
 
     @classmethod
-    def _parse_devices(cls, html: str, profiles: dict[str, str]) -> list[dict[str, str]]:
+    def _parse_devices(cls, html: str, profiles: dict[str, str]) -> list[dict[str, Any]]:
         """Extract device list with current profile from kidLis HTML.
 
         Each device row has a <select name="profile:landeviceXXX" disabled>
         where the <option selected> shows the current profile.  The UID can
         also come from data-uid="landeviceXXX" on the block-toggle link.
         """
-        devices: list[dict[str, str]] = []
+        devices: list[dict[str, Any]] = []
         for row in html.split("<tr"):
             name_m = re.search(r'class="name"[^>]*title="([^"]+)"', row)
             if not name_m:
@@ -340,13 +357,13 @@ class FritzProfilesApi:
         if not self._sid:
             await self.async_login()
 
-    async def _fetch_page(self, page: str) -> str:
+    async def _fetch_page(self, page: str, parameters: dict[str, str] | None = None) -> str:
         """Fetch a data.lua page and return raw HTML."""
         assert self._sid
         try:
             async with self._session.post(
                 f"{self._base_url}/data.lua",
-                data={"sid": self._sid, "page": page},
+                data={"sid": self._sid, "page": page, **(parameters or {})},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 if resp.status == 403:
@@ -355,7 +372,7 @@ class FritzProfilesApi:
                     await self.async_login()
                     async with self._session.post(
                         f"{self._base_url}/data.lua",
-                        data={"sid": self._sid, "page": page},
+                        data={"sid": self._sid, "page": page, **(parameters or {})},
                         timeout=aiohttp.ClientTimeout(total=15),
                     ) as retry:
                         retry.raise_for_status()
@@ -389,3 +406,40 @@ class FritzProfilesApi:
         response_str = f"{challenge}-{password}"
         # FritzBox requires UTF-16LE encoding for MD5
         return f"{challenge}-{hashlib.md5(response_str.encode('utf-16-le')).hexdigest()}"
+
+    @staticmethod
+    def _add_network_identity(devices: list[dict[str, Any]], response: str) -> None:
+        """Join profile rows to network devices by UID or an unambiguous name."""
+        try:
+            data = json.loads(response).get("data", {})
+        except (ValueError, AttributeError) as err:
+            raise CannotConnectError("Invalid network device response") from err
+        if not isinstance(data, dict):
+            raise CannotConnectError("Network device list is unavailable")
+        active = data.get("active", [])
+        passive = data.get("passive", [])
+        if not isinstance(active, list) or not isinstance(passive, list):
+            raise CannotConnectError("Invalid network device lists")
+        network_devices = active + passive
+        if any(not isinstance(device, dict) for device in network_devices):
+            raise CannotConnectError("Invalid network device record")
+        by_uid = {device["UID"]: device for device in network_devices if device.get("UID")}
+        by_name: dict[str, list[dict[str, Any]]] = {}
+        for device in network_devices:
+            by_name.setdefault(device.get("name", ""), []).append(device)
+        profile_name_counts: dict[str, int] = {}
+        for device in devices:
+            profile_name_counts[device["name"]] = profile_name_counts.get(device["name"], 0) + 1
+        for device in devices:
+            network_device = by_uid.get(device["uid"])
+            if network_device is None:
+                matches = by_name.get(device["name"], [])
+                if len(matches) == 1 and profile_name_counts[device["name"]] == 1:
+                    network_device = matches[0]
+            if network_device is None:
+                continue
+            if network_device.get("UID"):
+                device["landevice_uid"] = network_device["UID"]
+            mac = normalize_mac(network_device.get("mac", ""))
+            if mac:
+                device["mac"] = mac

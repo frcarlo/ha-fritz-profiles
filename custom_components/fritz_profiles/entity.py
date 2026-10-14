@@ -1,23 +1,14 @@
 """Base entity for FritzBox Profile Manager."""
 from __future__ import annotations
 
-import re
-import unicodedata
 from typing import Any
 
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo, format_mac
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FritzProfilesCoordinator
-
-
-def stable_device_key(device_name: str) -> str:
-    """Return a stable registry key for a FritzBox network device."""
-    normalized = unicodedata.normalize("NFKD", device_name)
-    ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
-    key = re.sub(r"[^a-z0-9]+", "_", ascii_name.lower()).strip("_")
-    return key or "unknown_device"
+from .identity import normalize_mac, stable_device_key
 
 
 class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
@@ -34,12 +25,18 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
         super().__init__(coordinator)
         self._device_uid = device_uid
         self._device_name = device_name
-        self._device_key = stable_device_key(device_name)
+        device = next(d for d in coordinator.data.get("devices", []) if d["uid"] == device_uid)
+        self._device_mac = normalize_mac(device.get("mac", ""))
+        self._device_key = stable_device_key(device)
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
             identifiers={(DOMAIN, self._device_key)},
+            connections=(
+                {(CONNECTION_NETWORK_MAC, format_mac(self._device_mac))}
+                if self._device_mac else set()
+            ),
             name=self._device_name,
             manufacturer="AVM",
             model="FritzBox Network Device",
@@ -51,16 +48,13 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
 
         The FritzBox reassigns UIDs on every profile change (e.g. user3561 in
         Kids becomes landevice671 in Standard, then user3563 back in Kids).
-        We therefore match by stored UID first, then fall back to device name.
+        Match by hardware identity so duplicate names and reassigned UIDs cannot
+        redirect profile changes to a different device.
         """
         devices = self.coordinator.data.get("devices", [])
         for device in devices:
-            if device["uid"] == self._device_uid:
+            if stable_device_key(device) == self._device_key:
                 return device
-        # UID changed — try name-based lookup (skip if name is ambiguous)
-        matches = [d for d in devices if d["name"] == self._device_name]
-        if len(matches) == 1:
-            return matches[0]
         return None
 
     def _get_profile_name(self, profile_id: str) -> str | None:
@@ -80,6 +74,8 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
         if device is None:
             return {}
         attrs: dict[str, Any] = {"device_name": self._device_name}
+        if self._device_mac:
+            attrs["mac_address"] = self._device_mac
         remaining = device.get("time_remaining")
         if remaining is not None:
             attrs["time_remaining_minutes"] = remaining
