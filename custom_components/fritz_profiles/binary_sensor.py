@@ -34,7 +34,7 @@ class FritzInternetAccessSensor(FritzProfileBaseEntity, BinarySensorEntity):
 
     def __init__(self, coordinator: FritzProfilesCoordinator, device_uid: str, device_name: str) -> None:
         super().__init__(coordinator, device_uid, device_name)
-        self._attr_unique_id = f"{DOMAIN}_{device_uid}_connectivity"
+        self._attr_unique_id = f"{DOMAIN}_{self._device_key}_connectivity"
         self._attr_name = "Internet Status"
 
     @property

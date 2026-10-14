@@ -126,4 +126,4 @@ The integration uses the internal FritzBox LUA API (`/data.lua`) with PBKDF2-SHA
 | `/internet/kids_userlist.lua` | Set profile (POST) |
 | `/internet/kids_profilelist.lua` | Reset tickets (POST) |
 
-**Note:** The FritzBox reassigns internal device UIDs on every profile change. The integration therefore identifies devices by name as a fallback to ensure entities remain stable across profile switches.
+**Note:** The FritzBox reassigns internal device UIDs on every profile change. The integration therefore uses the device name as the stable Home Assistant entity/device key and only uses the current FritzBox UID for write actions. If duplicate entities were created by an older version, remove the stale disabled/orphaned entries from Home Assistant after updating.

@@ -35,7 +35,7 @@ class FritzProfileSelectEntity(FritzProfileBaseEntity, SelectEntity):
 
     def __init__(self, coordinator, device_uid: str, device_name: str) -> None:
         super().__init__(coordinator, device_uid, device_name)
-        self._attr_unique_id = f"{DOMAIN}_{device_uid}_profile"
+        self._attr_unique_id = f"{DOMAIN}_{self._device_key}_profile"
         self._attr_name = "Profil"
 
     @property

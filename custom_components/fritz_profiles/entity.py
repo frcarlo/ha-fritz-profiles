@@ -1,15 +1,23 @@
 """Base entity for FritzBox Profile Manager."""
 from __future__ import annotations
 
+import re
+import unicodedata
 from typing import Any
 
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, NAME
+from .const import DOMAIN
 from .coordinator import FritzProfilesCoordinator
 
-_UNSET = object()
+
+def stable_device_key(device_name: str) -> str:
+    """Return a stable registry key for a FritzBox network device."""
+    normalized = unicodedata.normalize("NFKD", device_name)
+    ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
+    key = re.sub(r"[^a-z0-9]+", "_", ascii_name.lower()).strip("_")
+    return key or "unknown_device"
 
 
 class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
@@ -26,11 +34,12 @@ class FritzProfileBaseEntity(CoordinatorEntity[FritzProfilesCoordinator]):
         super().__init__(coordinator)
         self._device_uid = device_uid
         self._device_name = device_name
+        self._device_key = stable_device_key(device_name)
 
     @property
     def device_info(self) -> DeviceInfo:
         return DeviceInfo(
-            identifiers={(DOMAIN, self._device_uid)},
+            identifiers={(DOMAIN, self._device_key)},
             name=self._device_name,
             manufacturer="AVM",
             model="FritzBox Network Device",

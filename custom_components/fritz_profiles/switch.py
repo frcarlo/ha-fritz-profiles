@@ -35,7 +35,7 @@ class FritzProfileSwitchEntity(FritzProfileBaseEntity, SwitchEntity):
 
     def __init__(self, coordinator, device_uid: str, device_name: str) -> None:
         super().__init__(coordinator, device_uid, device_name)
-        self._attr_unique_id = f"{DOMAIN}_{device_uid}_internet"
+        self._attr_unique_id = f"{DOMAIN}_{self._device_key}_internet"
         self._attr_name = "Internet"
 
     @property
